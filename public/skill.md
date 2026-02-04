@@ -155,9 +155,11 @@ Returns the current status: `INPROGRESS`, `COMPLETED`, or `REFUNDED`.
 ## Token Addresses
 
 ### Native tokens (use these addresses):
-- **Solana (SOL)**: `So11111111111111111111111111111111111111112`
-- **Ethereum (ETH)**: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`
-- **Base (ETH)**: `0x4200000000000000000000000000000000000006`
+- **Solana (SOL)**: `0x0000000000000000000000000000000000000000` (zero address for native SOL)
+- **Ethereum (ETH)**: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2` (WETH)
+- **Base (ETH)**: `0x4200000000000000000000000000000000000006` (WETH on Base)
+
+**Important:** Use the zero address (`0x0...0`) for native SOL to receive unwrapped SOL. Using the WSOL mint (`So11111111111111111111111111111111111111112`) will deliver wrapped SOL.
 
 For other tokens, use their contract address on the respective chain.
 
@@ -203,7 +205,7 @@ async function autonomousSwap() {
   // 2. Get quote from Mayan (optimized for speed)
   const quotes = await fetchQuote({
     amount: 0.1,  // or use amountIn64 for token decimals
-    fromToken: 'So11111111111111111111111111111111111111112', // SOL
+    fromToken: '0x0000000000000000000000000000000000000000', // Native SOL (zero address)
     toToken: '0x4200000000000000000000000000000000000006',   // WETH on Base
     fromChain: 'solana',
     toChain: 'base',
@@ -297,7 +299,7 @@ async function autonomousSwap() {
 // Test with small amount first!
 const testQuote = await fetchQuote({
   amount: 0.01,  // Start small
-  fromToken: 'So11111111111111111111111111111111111111112',
+  fromToken: '0x0000000000000000000000000000000000000000',  // Native SOL
   toToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',  // USDC on Base
   fromChain: 'solana',
   toChain: 'base',
