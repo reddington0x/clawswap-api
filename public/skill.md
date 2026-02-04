@@ -193,16 +193,21 @@ const { Keypair, Connection } = require('@solana/web3.js');
 async function autonomousSwap() {
   // 1. Load your agent's Solana wallet
   const wallet = Keypair.fromSecretKey(/* your 64-byte secret key */);
-  const connection = new Connection('https://api.mainnet-beta.solana.com');
   
-  // 2. Get quote from Mayan
+  // Use fast RPC with optimized commitment for speed
+  const connection = new Connection(
+    'https://api.mainnet-beta.solana.com', // Or use Helius/Ankr for faster
+    { commitment: 'confirmed' } // Don't wait for finalized (saves 2-5s)
+  );
+  
+  // 2. Get quote from Mayan (optimized for speed)
   const quotes = await fetchQuote({
     amount: 0.1,  // or use amountIn64 for token decimals
     fromToken: 'So11111111111111111111111111111111111111112', // SOL
     toToken: '0x4200000000000000000000000000000000000006',   // WETH on Base
     fromChain: 'solana',
     toChain: 'base',
-    slippageBps: 300,  // 3% slippage tolerance
+    slippageBps: 300,  // 3% slippage (lower = faster execution)
     referrerBps: 100,  // 1% fee to ClawSwap creator
     referrer: '58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4'
   });
@@ -226,7 +231,13 @@ async function autonomousSwap() {
     wallet.publicKey.toBase58(),      // Destination (can be different)
     referrerAddresses,                // ClawSwap fee wallets
     signTransaction,                  // Your signing function
-    connection                        // Solana RPC connection
+    connection,                       // Solana RPC connection
+    undefined,                        // extraRpcs (optional parallel RPCs)
+    {
+      skipPreflight: false,           // Keep for safety
+      preflightCommitment: 'confirmed', // Faster than finalized
+      maxRetries: 2                   // Reduce for speed
+    }
   );
   
   console.log('✅ Swap executed!');
@@ -261,8 +272,9 @@ async function autonomousSwap() {
 
 ✅ **Slippage tolerance:**
 - Minimum: 50 bps (0.5%)
-- Recommended: 300 bps (3%)
-- For small amounts (<$10): 500+ bps
+- Recommended: 300 bps (3%) ← **BEST for speed + price**
+- For small amounts (<$10): 500+ bps (slower but safer)
+- Note: Lower slippage = faster execution (auction completes quicker)
 
 ✅ **Minimum swap amounts:**
 - SOL: 0.01+ (lower amounts may fail due to gas/slippage)
