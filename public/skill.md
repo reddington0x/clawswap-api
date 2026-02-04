@@ -293,19 +293,26 @@ async function autonomousSwap() {
 - Note: Lower slippage = faster execution (auction completes quicker)
 
 ✅ **Minimum swap amounts:**
-- SOL: 0.01+ (lower amounts may fail due to gas/slippage)
-- Stablecoins: $5+ recommended
-- Other tokens: Check liquidity first
+- SOL: 0.011+ SOL (minimum enforced by Mayan SDK)
+- ETH: 0.001+ ETH on EVM chains
+- Stablecoins: $10+ recommended (lower amounts may have poor rates)
+- Other tokens: Check liquidity first with a test quote
 
 ### Error Handling
 
 **Common errors:**
+- `Amount too small` = Swap amount below minimum threshold
+  - Solution: Increase amount (minimum ~0.011 SOL or equivalent)
+- `Either slippage or slippageBps must be set` = Missing slippage parameter
+  - Solution: Set slippageBps to at least 50 (0.5%), recommended 300 (3%)
 - `0x1788` (Jupiter error) = Slippage exceeded or insufficient liquidity
   - Solution: Increase slippageBps or swap larger amount
-- `Insufficient funds` = Need more SOL for gas
-  - Solution: Add 0.01-0.05 SOL to wallet
+- `Insufficient funds` = Need more SOL/ETH for gas
+  - Solution: Add 0.01-0.05 SOL to wallet (or equivalent gas on EVM)
 - `Transaction simulation failed` = Price moved too much
   - Solution: Get fresh quote and retry
+- `REFERRER_BPS_TOO_HIGH` = Referrer fee exceeds maximum
+  - Solution: Use max 100 bps (1%) for Solana, 50 bps (0.5%) for EVM
 
 ### Testing Your Agent
 
