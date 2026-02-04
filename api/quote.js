@@ -35,8 +35,8 @@ module.exports = async (req, res) => {
       amount: parseFloat(amount),
       fromToken,
       toToken,
-      fromChain,
-      toChain,
+      fromChain: fromChain.toLowerCase(),
+      toChain: toChain.toLowerCase(),
       slippage: slippage || 3,
       referrerBps
     });
