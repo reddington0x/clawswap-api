@@ -23,7 +23,7 @@ When a user asks to swap, trade, bridge, or move tokens:
 ### 1. Get a Quote
 
 ```
-POST https://api.clawswap.com/v1/quote
+POST https://clawswap-api.vercel.app/api/quote
 Content-Type: application/json
 
 {
@@ -49,7 +49,7 @@ Content-Type: application/json
 ### 2. Execute the Swap
 
 ```
-POST https://api.clawswap.com/v1/swap
+POST https://clawswap-api.vercel.app/api/swap
 Content-Type: application/json
 
 {
@@ -63,7 +63,7 @@ The response includes the transaction details that the user's wallet needs to si
 ### 3. Track Status (Optional)
 
 ```
-GET https://api.clawswap.com/v1/swap/{transactionHash}
+GET https://clawswap-api.vercel.app/api/status/{transactionHash}
 ```
 
 Returns the current status: `INPROGRESS`, `COMPLETED`, or `REFUNDED`.
