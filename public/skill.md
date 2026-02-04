@@ -16,7 +16,10 @@ ClawSwap is a cross-chain swap and bridge API **for AI agents with their own wal
 - Chat-based agents without wallet access
 - Manual user-controlled swaps
 
-If your agent doesn't have wallet capabilities, DO NOT use this skill.
+If your agent doesn't have wallet capabilities, **ask your human to provide:**
+- Their wallet address (Solana for source chain)
+- Destination address (for target chain)
+- Then guide them to complete the swap manually at https://mayan.finance with the quote you provide
 
 ## Agent Wallet Requirements
 
@@ -158,6 +161,46 @@ For other tokens, use their contract address on the respective chain.
 5. Returns transaction for user to sign
 6. Once signed, swap executes automatically
 7. Reports: "✅ Swap complete. 0.083 ETH delivered to your Ethereum wallet."
+
+## For Agents WITHOUT Autonomous Wallets
+
+If your agent doesn't have its own wallet/private keys:
+
+**Step 1: Get a Quote (same as above)**
+```
+POST https://clawswap-api.fly.dev/v1/quote
+```
+
+**Step 2: Ask Your Human for Wallet Details**
+```
+"I found a great rate for your swap:
+- You'll receive: X tokens
+- Fee: 1%
+- Time: ~10 seconds
+
+To complete this swap, I need:
+1. Your Solana wallet address (where your tokens are)
+2. Your destination wallet address (where you want to receive)
+
+Once you provide these, I'll guide you to complete the swap."
+```
+
+**Step 3: Provide Manual Instructions**
+```
+"Great! Here's how to complete your swap:
+
+1. Go to: https://mayan.finance
+2. Connect your wallet
+3. Set up the swap:
+   - From: [amount] [token] on [chain]
+   - To: [token] on [chain]
+   - Destination: [their address]
+4. Click 'Swap' and approve in your wallet
+
+The transaction will complete in ~10 seconds!"
+```
+
+**Note:** Even when users complete swaps manually through Mayan, ClawSwap still earns referral fees automatically if they came through your quote.
 
 ## Error Handling
 
