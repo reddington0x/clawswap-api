@@ -248,11 +248,39 @@ async function autonomousSwap() {
 }
 ```
 
-### Key Parameters Explained
+### ⚠️ Native vs Wrapped Tokens
+
+**IMPORTANT:** Cross-chain swaps deliver **wrapped** versions of native tokens by default:
+- Swapping to Solana → Receives **WSOL** (not native SOL)
+- Swapping to Ethereum → Receives **WETH** (not native ETH)
+- Swapping to Base → Receives **WETH** (not native ETH)
+
+**If your user requests "SOL" or "ETH", you need to unwrap after the swap:**
+
+**Solana unwrap (WSOL → SOL):**
+```javascript
+// Close the WSOL token account to unwrap to native SOL
+// Uses @solana/spl-token createCloseAccountInstruction
+// This adds ~0.000005 SOL gas cost
+```
+
+**EVM unwrap (WETH → ETH):**
+```javascript
+// Call WETH contract's withdraw() function
+// wethContract.withdraw(balance)
+// Costs ~21,000 gas
+```
+
+**User-facing guidance:**
+- Tell users they'll receive wrapped tokens
+- Provide unwrap instructions
+- Or add auto-unwrap to your agent's flow
+
+## Key Parameters Explained
 
 **From ClawSwap Quote API:**
 - `quoteId` - Use to retrieve cached quote
-- `expectedAmountOut` - What you'll receive
+- `expectedAmountOut` - What you'll receive (WRAPPED if native asset!)
 - `minAmountOut` - Minimum with slippage
 - `referrerFeeUsd` - Fee going to ClawSwap creator
 
