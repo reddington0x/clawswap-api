@@ -35,14 +35,16 @@ async function executeSwap() {
   console.log('');
 
   try {
-    // SPEED OPTIMIZATION 1: Use faster RPC with optimized commitment
-    const rpcUrl = process.env.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
+    // SPEED OPTIMIZATION 1: Use Helius Premium RPC for maximum speed
+    const heliusKey = process.env.HELIUS_API_KEY || 'b1b732ee-dc03-484c-ab78-7278586d12c7';
+    const rpcUrl = process.env.SOLANA_RPC || `https://mainnet.helius-rpc.com/?api-key=${heliusKey}`;
     const connection = new Connection(rpcUrl, {
       commitment: 'confirmed',      // Don't wait for finalized (saves 2-5s)
       confirmTransactionInitialTimeout: 60000
     });
     
-    logTime('🔌 Connected to RPC: ' + rpcUrl);
+    const rpcDisplay = rpcUrl.includes('helius') ? 'Helius Premium RPC ⚡' : rpcUrl;
+    logTime(`🔌 Connected to ${rpcDisplay}`);
 
     // SPEED OPTIMIZATION 2: Lower slippage = faster auction (300 bps = 3%)
     logTime('🔍 Fetching quote from Mayan...');
