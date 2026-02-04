@@ -1,12 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { fetchQuote, swapFromSolana, swapFromEvm } = require('@mayanfinance/swap-sdk');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 
 // In-memory quote cache (use Redis in production)
 const quoteCache = new Map();
