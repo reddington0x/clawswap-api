@@ -4,45 +4,45 @@
  * 
  * Generates secure wallets for AI agents to use with ClawSwap
  * Run once, fund the wallets, then your agent can swap autonomously!
+ * 
+ * REQUIRES: npm install @solana/web3.js ethers
  */
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
 console.log('🦞 ClawSwap Agent Wallet Generator\n');
 
-// Generate Solana wallet (simplified - ed25519 keypair)
+// Check dependencies
+let Keypair, Wallet;
+try {
+  ({ Keypair } = require('@solana/web3.js'));
+  ({ Wallet } = require('ethers'));
+} catch (e) {
+  console.error('❌ Missing dependencies!\n');
+  console.error('Please run: npm install @solana/web3.js ethers\n');
+  process.exit(1);
+}
+
+// Generate REAL Solana wallet using @solana/web3.js
 function generateSolanaWallet() {
-  // Generate ed25519 keypair (same as Solana uses)
-  const keypair = crypto.generateKeyPairSync('ed25519');
-  
-  const publicKey = keypair.publicKey.export({ type: 'spki', format: 'der' });
-  const privateKey = keypair.privateKey.export({ type: 'pkcs8', format: 'der' });
-  
-  // Extract raw 32-byte keys (Solana format)
-  const pubKeyRaw = publicKey.slice(-32);
-  const privKeyRaw = privateKey.slice(-32);
-  
-  // Solana uses base58 for addresses, but we'll use hex for simplicity
-  const address = pubKeyRaw.toString('hex');
-  const secret = Buffer.concat([privKeyRaw, pubKeyRaw]); // Solana format: 64 bytes
+  const keypair = Keypair.generate();
   
   return {
-    address,
-    privateKey: secret.toString('base64'),
-    secretBytes: Array.from(secret)
+    address: keypair.publicKey.toBase58(),
+    privateKey: Buffer.from(keypair.secretKey).toString('base64'),
+    secretBytes: Array.from(keypair.secretKey)
   };
 }
 
-// Generate EVM wallet
+// Generate REAL EVM wallet using ethers
 function generateEvmWallet() {
-  const privateKey = crypto.randomBytes(32);
-  const address = '0x' + crypto.createHash('sha256').update(privateKey).digest('hex').slice(0, 40);
+  const wallet = Wallet.createRandom();
   
   return {
-    address,
-    privateKey: '0x' + privateKey.toString('hex')
+    address: wallet.address,
+    privateKey: wallet.privateKey,
+    mnemonic: wallet.mnemonic.phrase
   };
 }
 
