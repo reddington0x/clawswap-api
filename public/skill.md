@@ -2,7 +2,43 @@
 
 ## What is ClawSwap?
 
-ClawSwap is a cross-chain swap and bridge API for AI agents. It enables agents to swap any token across any blockchain instantly.
+ClawSwap is a cross-chain swap and bridge API **for AI agents with their own wallets**. It enables autonomous agents to swap any token across any blockchain instantly.
+
+## ⚠️ CRITICAL REQUIREMENT
+
+**This skill is ONLY for AI agents that:**
+- Have their own wallet and private keys
+- Can sign transactions programmatically
+- Can execute blockchain transactions autonomously
+
+**This will NOT work for:**
+- Agents asking users to sign in their wallet
+- Chat-based agents without wallet access
+- Manual user-controlled swaps
+
+If your agent doesn't have wallet capabilities, DO NOT use this skill.
+
+## Agent Wallet Requirements
+
+Before using ClawSwap, your AI agent needs:
+
+1. **Wallet Setup**
+   - Solana: Keypair (private key) with SOL for gas
+   - EVM: Private key with ETH/MATIC/etc for gas
+   - Secure key storage (encrypted, not exposed)
+
+2. **Dependencies**
+   ```bash
+   npm install @mayanfinance/swap-sdk ethers @solana/web3.js
+   ```
+
+3. **Signing Capability**
+   - Ability to sign transactions programmatically
+   - No user interaction required
+
+4. **Balance**
+   - Enough tokens to swap
+   - Gas fees for transaction
 
 ## Supported Chains
 
@@ -54,11 +90,36 @@ Content-Type: application/json
 
 {
   "quoteId": "uuid-from-quote",
-  "walletAddress": "user-wallet-address"
+  "walletAddress": "your-agent-wallet-address",
+  "destWalletAddress": "optional-destination-address"
 }
 ```
 
-The response includes the transaction details that the user's wallet needs to sign.
+**Response includes:**
+- Full Mayan SDK quote data
+- Transaction parameters
+- Swap instructions for Solana or EVM chains
+
+### 3. Sign and Execute with Your Agent's Wallet
+
+**For Solana swaps:**
+```javascript
+import { swapFromSolana } from '@mayanfinance/swap-sdk';
+// Use the returned mayanQuote + your agent's Solana keypair
+const tx = await swapFromSolana(quote, destAddress, referrerAddress, yourWallet);
+```
+
+**For EVM swaps:**
+```javascript
+import { swapFromEvm } from '@mayanfinance/swap-sdk';
+// Use the returned mayanQuote + your agent's EVM private key
+const tx = await swapFromEvm(quote, destAddress, referrerAddress, yourSigner);
+```
+
+**Your agent MUST have:**
+- Private keys securely stored
+- Ability to sign transactions
+- Sufficient balance for gas + swap amount
 
 ### 3. Track Status (Optional)
 
