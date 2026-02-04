@@ -69,13 +69,12 @@ app.post('/v1/quote', async (req, res) => {
 
     // Fetch quote from Mayan with our referral fee
     const quotes = await fetchQuote({
-      amountIn64: amount.toString(),
+      amount: parseFloat(amount),
       fromToken: fromToken,
       toToken: toToken,
       fromChain: fromChain.toLowerCase(),
       toChain: toChain.toLowerCase(),
-      slippageBps: slippageBps || "auto",
-      referrer: REFERRER_ADDRESSES.solana,  // Always use Solana address
+      slippage: typeof slippageBps === 'number' ? slippageBps / 100 : 3,
       referrerBps: referrerBps
     });
 
