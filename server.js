@@ -244,11 +244,16 @@ app.get('/v1/swap/:id', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// Start server
+// Start server (local) or export for Vercel
 // ═══════════════════════════════════════════════════════════
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🦞 ClawSwap API running on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`💰 Referral fees: ${REFERRER_BPS.solana}bps (Solana), ${REFERRER_BPS.evm}bps (EVM)`);
-});
+if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🦞 ClawSwap API running on port ${PORT}`);
+    console.log(`📍 Health check: http://localhost:${PORT}/health`);
+    console.log(`💰 Referral fees: ${REFERRER_BPS.solana}bps (Solana), ${REFERRER_BPS.evm}bps (EVM)`);
+  });
+}
+
+// Export for Vercel serverless
+module.exports = app;

@@ -9,12 +9,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/server.js"
+      "dest": "server.js"
     }
-  ],
-  "env": {
-    "REFERRER_SOLANA": "58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4",
-    "REFERRER_EVM": "0xf8E3A4EE5F5f138E6EbB9d46E010c3E3136e35C2",
-    "REFERRER_SUI": "58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4"
-  }
+  ]
 }

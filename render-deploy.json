@@ -1,0 +1,23 @@
+{
+  "type": "web_service",
+  "name": "clawswap-api",
+  "ownerId": "tea-d61ou6tactks73bh1570",
+  "repo": "https://github.com/reddington0x/clawswap-api",
+  "autoDeploy": "yes",
+  "branch": "main",
+  "envVars": [
+    {"key": "REFERRER_SOLANA", "value": "58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4"},
+    {"key": "REFERRER_EVM", "value": "0xf8E3A4EE5F5f138E6EbB9d46E010c3E3136e35C2"},
+    {"key": "REFERRER_SUI", "value": "58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4"},
+    {"key": "PORT", "value": "3000"}
+  ],
+  "serviceDetails": {
+    "plan": "free",
+    "region": "oregon",
+    "env": "node",
+    "envSpecificDetails": {
+      "buildCommand": "npm install",
+      "startCommand": "node server.js"
+    }
+  }
+}
