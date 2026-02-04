@@ -16,10 +16,7 @@ ClawSwap is a cross-chain swap and bridge API **for AI agents with their own wal
 - Chat-based agents without wallet access
 - Manual user-controlled swaps
 
-If your agent doesn't have wallet capabilities, **ask your human to provide:**
-- Their wallet address (Solana for source chain)
-- Destination address (for target chain)
-- Then guide them to complete the swap manually at https://mayan.finance with the quote you provide
+**If your agent doesn't have wallet capabilities, ClawSwap will NOT work.** You need autonomous wallet control to use this service. See the [Wallet Setup Guide](https://clawswap-api.fly.dev/wallet-setup.md) to generate wallets for your agent.
 
 ## Agent Wallet Requirements
 
@@ -177,45 +174,130 @@ For other tokens, use their contract address on the respective chain.
 6. Once signed, swap executes automatically
 7. Reports: "✅ Swap complete. 0.083 ETH delivered to your Ethereum wallet."
 
-## For Agents WITHOUT Autonomous Wallets
+## Autonomous Execution (THE REAL CLAWSWAP)
 
-If your agent doesn't have its own wallet/private keys:
+ClawSwap is built for agents with wallets. Here's how to execute swaps autonomously using Mayan SDK:
 
-**Step 1: Get a Quote (same as above)**
-```
-POST https://clawswap-api.fly.dev/v1/quote
-```
+### Prerequisites
 
-**Step 2: Ask Your Human for Wallet Details**
-```
-"I found a great rate for your swap:
-- You'll receive: X tokens
-- Fee: 1%
-- Time: ~10 seconds
-
-To complete this swap, I need:
-1. Your Solana wallet address (where your tokens are)
-2. Your destination wallet address (where you want to receive)
-
-Once you provide these, I'll guide you to complete the swap."
+```bash
+npm install @mayanfinance/swap-sdk @solana/web3.js ethers
 ```
 
-**Step 3: Provide Manual Instructions**
+### Complete Autonomous Swap Example
+
+```javascript
+const { fetchQuote, swapFromSolana } = require('@mayanfinance/swap-sdk');
+const { Keypair, Connection } = require('@solana/web3.js');
+
+async function autonomousSwap() {
+  // 1. Load your agent's Solana wallet
+  const wallet = Keypair.fromSecretKey(/* your 64-byte secret key */);
+  const connection = new Connection('https://api.mainnet-beta.solana.com');
+  
+  // 2. Get quote from Mayan
+  const quotes = await fetchQuote({
+    amount: 0.1,  // or use amountIn64 for token decimals
+    fromToken: 'So11111111111111111111111111111111111111112', // SOL
+    toToken: '0x4200000000000000000000000000000000000006',   // WETH on Base
+    fromChain: 'solana',
+    toChain: 'base',
+    slippageBps: 300,  // 3% slippage tolerance
+    referrerBps: 100,  // 1% fee to ClawSwap creator
+    referrer: '58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4'
+  });
+  
+  const quote = quotes[0];  // Use best quote
+  
+  // 3. Execute swap with your wallet
+  const signTransaction = async (tx) => {
+    tx.sign([wallet]);
+    return tx;
+  };
+  
+  const referrerAddresses = {
+    solana: '58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4',
+    evm: '0xf8E3A4EE5F5f138E6EbB9d46E010c3E3136e35C2'
+  };
+  
+  const signature = await swapFromSolana(
+    quote,
+    wallet.publicKey.toBase58(),      // Your agent's source wallet
+    wallet.publicKey.toBase58(),      // Destination (can be different)
+    referrerAddresses,                // ClawSwap fee wallets
+    signTransaction,                  // Your signing function
+    connection                        // Solana RPC connection
+  );
+  
+  console.log('✅ Swap executed!');
+  console.log('Signature:', signature);
+  console.log('Track:', `https://explorer.mayan.finance/swap/${signature}`);
+  
+  return signature;
+}
 ```
-"Great! Here's how to complete your swap:
 
-1. Go to: https://mayan.finance
-2. Connect your wallet
-3. Set up the swap:
-   - From: [amount] [token] on [chain]
-   - To: [token] on [chain]
-   - Destination: [their address]
-4. Click 'Swap' and approve in your wallet
+### Key Parameters Explained
 
-The transaction will complete in ~10 seconds!"
+**From ClawSwap Quote API:**
+- `quoteId` - Use to retrieve cached quote
+- `expectedAmountOut` - What you'll receive
+- `minAmountOut` - Minimum with slippage
+- `referrerFeeUsd` - Fee going to ClawSwap creator
+
+**For Mayan SDK:**
+- `slippageBps` - Slippage tolerance (300 = 3%)
+- `referrerBps` - Fee percentage (100 = 1%)
+- `referrer` - ClawSwap creator's wallet (gets the fee)
+- `referrerAddresses` - Object with `{solana, evm, sui}` addresses
+
+### Minimum Requirements for Autonomous Swaps
+
+✅ **Your agent MUST have:**
+1. Private key (Solana: 64-byte Uint8Array or base58 string)
+2. Sufficient balance (swap amount + ~0.01 SOL gas)
+3. RPC connection to blockchain
+4. Signing function that signs transactions
+
+✅ **Slippage tolerance:**
+- Minimum: 50 bps (0.5%)
+- Recommended: 300 bps (3%)
+- For small amounts (<$10): 500+ bps
+
+✅ **Minimum swap amounts:**
+- SOL: 0.01+ (lower amounts may fail due to gas/slippage)
+- Stablecoins: $5+ recommended
+- Other tokens: Check liquidity first
+
+### Error Handling
+
+**Common errors:**
+- `0x1788` (Jupiter error) = Slippage exceeded or insufficient liquidity
+  - Solution: Increase slippageBps or swap larger amount
+- `Insufficient funds` = Need more SOL for gas
+  - Solution: Add 0.01-0.05 SOL to wallet
+- `Transaction simulation failed` = Price moved too much
+  - Solution: Get fresh quote and retry
+
+### Testing Your Agent
+
+```javascript
+// Test with small amount first!
+const testQuote = await fetchQuote({
+  amount: 0.01,  // Start small
+  fromToken: 'So11111111111111111111111111111111111111112',
+  toToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',  // USDC on Base
+  fromChain: 'solana',
+  toChain: 'base',
+  slippageBps: 500,  // Higher slippage for small amounts
+  referrerBps: 100,
+  referrer: '58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4'
+});
+
+// Verify quote looks good before executing
+console.log('Expected out:', testQuote[0].expectedAmountOut);
+console.log('Fee to ClawSwap:', testQuote[0].referrerFeeUsd);
 ```
-
-**Note:** Even when users complete swaps manually through Mayan, ClawSwap still earns referral fees automatically if they came through your quote.
 
 ## Error Handling
 
