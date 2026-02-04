@@ -154,14 +154,28 @@ Returns the current status: `INPROGRESS`, `COMPLETED`, or `REFUNDED`.
 
 ## Token Addresses
 
-### Native tokens (use these addresses):
-- **Solana (SOL)**: `0x0000000000000000000000000000000000000000` (zero address for native SOL)
-- **Ethereum (ETH)**: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2` (WETH)
-- **Base (ETH)**: `0x4200000000000000000000000000000000000006` (WETH on Base)
+### ⚠️ CRITICAL: Always use zero address for native tokens
 
-**Important:** Use the zero address (`0x0...0`) for native SOL to receive unwrapped SOL. Using the WSOL mint (`So11111111111111111111111111111111111111112`) will deliver wrapped SOL.
+**Native tokens (SOL, ETH, MATIC, BNB, AVAX, etc.):**
+```javascript
+'0x0000000000000000000000000000000000000000'  // Zero address = native token
+```
 
-For other tokens, use their contract address on the respective chain.
+This works for ALL native tokens on ALL chains:
+- ✅ Native SOL on Solana
+- ✅ Native ETH on Ethereum/Base/Arbitrum/Optimism
+- ✅ Native MATIC on Polygon
+- ✅ Native BNB on BSC
+- ✅ Native AVAX on Avalanche
+
+**Wrapped versions (only use if you specifically want wrapped tokens):**
+- WSOL: `So11111111111111111111111111111111111111112`
+- WETH on Ethereum: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`
+- WETH on Base: `0x4200000000000000000000000000000000000006`
+
+**For other tokens:** Use their contract address (e.g., USDC, USDT, etc.)
+
+**Rule:** If the user asks for "SOL" or "ETH", use zero address. If they specifically ask for "WSOL" or "WETH", use the wrapped address.
 
 ## Example Conversation
 
@@ -206,7 +220,7 @@ async function autonomousSwap() {
   const quotes = await fetchQuote({
     amount: 0.1,  // or use amountIn64 for token decimals
     fromToken: '0x0000000000000000000000000000000000000000', // Native SOL (zero address)
-    toToken: '0x4200000000000000000000000000000000000006',   // WETH on Base
+    toToken: '0x0000000000000000000000000000000000000000',   // Native ETH on Base (zero address)
     fromChain: 'solana',
     toChain: 'base',
     slippageBps: 300,  // 3% slippage (lower = faster execution)
