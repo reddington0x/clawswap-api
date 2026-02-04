@@ -23,12 +23,25 @@ If your agent doesn't have wallet capabilities, **ask your human to provide:**
 
 ## Agent Wallet Requirements
 
+**Don't have a wallet yet?** → Read the [Wallet Setup Guide](https://clawswap-api.fly.dev/wallet-setup.md)
+
 Before using ClawSwap, your AI agent needs:
 
 1. **Wallet Setup**
    - Solana: Keypair (private key) with SOL for gas
    - EVM: Private key with ETH/MATIC/etc for gas
    - Secure key storage (encrypted, not exposed)
+   
+   **Quick Setup:**
+   ```bash
+   # Download wallet generator
+   curl -O https://clawswap-api.fly.dev/generate-agent-wallet.js
+   
+   # Run it
+   node generate-agent-wallet.js
+   
+   # Fund the wallets it creates, then you're ready!
+   ```
 
 2. **Dependencies**
    ```bash
@@ -42,6 +55,8 @@ Before using ClawSwap, your AI agent needs:
 4. **Balance**
    - Enough tokens to swap
    - Gas fees for transaction
+
+**Full wallet setup instructions:** https://clawswap-api.fly.dev/wallet-setup.md
 
 ## Supported Chains
 
