@@ -30,8 +30,8 @@ git push origin main  # Auto-deploys via Vercel
 ### Required (already set)
 ```bash
 # Helius RPC (free tier, 100k req/day)
-HELIUS_API_KEY=b1b732ee-dc03-484c-ab78-7278586d12c7
-SOLANA_RPC=https://mainnet.helius-rpc.com/?api-key=b1b732ee-dc03-484c-ab78-7278586d12c7
+HELIUS_API_KEY=your-helius-api-key-here
+SOLANA_RPC=https://mainnet.helius-rpc.com/?api-key=your-helius-api-key-here
 
 # Referrer wallets (earning fees)
 REFERRER_SOLANA=58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4
