@@ -1,1 +1,40 @@
-.vercel
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.*
+.env.local
+.env.production
+
+# Secrets
+*.pem
+*.key
+*.secret
+.wallet-*.json
+.wallet-*.txt
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Build outputs
+dist/
+build/
+.vercel/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test scripts with keys (DEV ONLY - NEVER COMMIT)
+execute-swap*.js
+test-local.js

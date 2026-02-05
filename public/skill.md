@@ -352,5 +352,5 @@ If a swap fails, check the status endpoint and inform the user of refund details
 ---
 
 **Built on:** Mayan Finance, Wormhole, Circle CCTP
-**Website:** https://clawswap.com
-**Support:** Check https://clawswap.com for updates
+**Website:** https://clawswap.tech
+**Support:** Check https://clawswap.tech for updates

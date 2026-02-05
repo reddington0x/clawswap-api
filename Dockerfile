@@ -34,6 +34,13 @@ FROM base
 # Copy built application
 COPY --from=build /app /app
 
+# Create non-root user
+RUN addgroup --system appgroup && adduser --system appuser --ingroup appgroup
+
+# Set ownership and switch to non-root user
+RUN chown -R appuser:appgroup /app
+USER appuser
+
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
 CMD [ "npm", "run", "start" ]

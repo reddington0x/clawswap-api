@@ -1,75 +1,184 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const { fetchQuote, swapFromSolana, swapFromEvm } = require('@mayanfinance/swap-sdk');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { LRUCache } = require('lru-cache');
+const { fetchQuote } = require('@mayanfinance/swap-sdk');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
 
-// In-memory quote cache (use Redis in production)
-const quoteCache = new Map();
+// ═══════════════════════════════════════════════════════════
+// SECURITY MIDDLEWARE
+// ═══════════════════════════════════════════════════════════
 
-// Referrer addresses (John's wallets)
+// Security headers
+app.use(helmet());
+
+// CORS - restrict to known origins
+app.use(cors({
+  origin: [
+    'https://clawswap.tech',
+    'https://www.clawswap.tech',
+    'https://clawswap-api.fly.dev'
+  ],
+  methods: ['GET', 'POST'],
+  credentials: false
+}));
+
+// Request size limits
+app.use(express.json({ limit: '10kb' }));
+
+// Rate limiting - quote endpoint
+const quoteLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute per IP
+  message: { error: 'Too many quote requests. Try again in 1 minute.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Rate limiting - swap endpoint
+const swapLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 swaps per minute per IP
+  message: { error: 'Too many swap requests. Try again in 1 minute.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// ═══════════════════════════════════════════════════════════
+// CACHE CONFIGURATION
+// ═══════════════════════════════════════════════════════════
+
+// LRU cache with max size and TTL
+const quoteCache = new LRUCache({
+  max: 10000, // Max 10k quotes cached
+  ttl: 5 * 60 * 1000, // 5 minutes
+  updateAgeOnGet: false,
+  updateAgeOnHas: false
+});
+
+// ═══════════════════════════════════════════════════════════
+// CONFIGURATION
+// ═══════════════════════════════════════════════════════════
+
+// Validate environment variables
+if (!process.env.REFERRER_SOLANA || !process.env.REFERRER_EVM) {
+  console.error('❌ CRITICAL: REFERRER_SOLANA and REFERRER_EVM must be set');
+  process.exit(1);
+}
+
+// Referrer addresses (from env only)
 const REFERRER_ADDRESSES = {
-  solana: process.env.REFERRER_SOLANA || 'YOUR_SOLANA_WALLET',
-  evm: process.env.REFERRER_EVM || 'YOUR_EVM_WALLET',
-  sui: process.env.REFERRER_SUI || 'YOUR_SUI_WALLET'
+  solana: process.env.REFERRER_SOLANA,
+  evm: process.env.REFERRER_EVM,
+  sui: process.env.REFERRER_SUI || process.env.REFERRER_SOLANA
 };
 
 // Max referral fees
 const REFERRER_BPS = {
   solana: 100,  // 1% from Solana
-  evm: 50,      // 0.5% from EVM (until Swift V2)
+  evm: 50,      // 0.5% from EVM
   default: 50
 };
 
+// Supported chains
+const SUPPORTED_CHAINS = [
+  'solana', 'ethereum', 'base', 'arbitrum', 'optimism',
+  'polygon', 'bsc', 'avalanche', 'sui'
+];
+
 // ═══════════════════════════════════════════════════════════
-// GET /health
+// INPUT VALIDATION
 // ═══════════════════════════════════════════════════════════
+
+function validateQuoteRequest(params) {
+  const { fromChain, toChain, fromToken, toToken, amount, slippageBps } = params;
+
+  // Required fields
+  if (!fromChain || !toChain || !fromToken || !toToken || !amount) {
+    return { valid: false, error: 'Missing required fields' };
+  }
+
+  // Chain validation
+  if (!SUPPORTED_CHAINS.includes(fromChain.toLowerCase())) {
+    return { valid: false, error: `Unsupported fromChain: ${fromChain}` };
+  }
+  if (!SUPPORTED_CHAINS.includes(toChain.toLowerCase())) {
+    return { valid: false, error: `Unsupported toChain: ${toChain}` };
+  }
+
+  // Amount validation
+  const parsedAmount = parseFloat(amount);
+  if (isNaN(parsedAmount) || parsedAmount <= 0 || !isFinite(parsedAmount)) {
+    return { valid: false, error: 'Amount must be a positive number' };
+  }
+  if (parsedAmount > 1e15) {
+    return { valid: false, error: 'Amount exceeds maximum' };
+  }
+
+  // Slippage validation (if provided)
+  if (slippageBps !== undefined) {
+    const parsed = parseInt(slippageBps);
+    if (isNaN(parsed) || parsed < 1 || parsed > 5000) {
+      return { valid: false, error: 'slippageBps must be between 1 and 5000' };
+    }
+  }
+
+  // Token address validation (basic)
+  if (typeof fromToken !== 'string' || fromToken.length === 0) {
+    return { valid: false, error: 'Invalid fromToken' };
+  }
+  if (typeof toToken !== 'string' || toToken.length === 0) {
+    return { valid: false, error: 'Invalid toToken' };
+  }
+
+  return { valid: true };
+}
+
+// ═══════════════════════════════════════════════════════════
+// ENDPOINTS
+// ═══════════════════════════════════════════════════════════
+
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok',
     service: 'ClawSwap API',
-    version: '1.0.0',
+    version: '1.0.1',
     timestamp: new Date().toISOString()
   });
 });
 
-// ═══════════════════════════════════════════════════════════
-// POST /v1/quote
-// Get swap quote with ClawSwap fee included
-// ═══════════════════════════════════════════════════════════
-app.post('/v1/quote', async (req, res) => {
+app.post('/v1/quote', quoteLimit, async (req, res) => {
   try {
     const { 
-      fromChain,    // "solana", "ethereum", etc
+      fromChain,
       toChain, 
-      fromToken,    // Token address or "native"
+      fromToken,
       toToken,
-      amount,       // Amount in smallest unit (lamports, wei, etc)
-      slippageBps   // Optional, defaults to "auto"
+      amount,
+      slippageBps
     } = req.body;
 
-    // Validate required fields
-    if (!fromChain || !toChain || !fromToken || !toToken || !amount) {
+    // Validate input
+    const validation = validateQuoteRequest(req.body);
+    if (!validation.valid) {
       return res.status(400).json({ 
-        error: 'Missing required fields',
-        required: ['fromChain', 'toChain', 'fromToken', 'toToken', 'amount']
+        error: 'Invalid request',
+        message: validation.error
       });
     }
 
-    // Determine referral BPS based on source chain
+    // Determine referral BPS
     const referrerBps = fromChain.toLowerCase() === 'solana' 
       ? REFERRER_BPS.solana 
       : REFERRER_BPS.evm;
 
-    console.log(`[QUOTE] ${fromChain} → ${toChain} | Fee: ${referrerBps}bps`);
+    console.log(`[QUOTE] ${fromChain} → ${toChain} | ${amount} | Fee: ${referrerBps}bps`);
 
-    // Fetch quote from Mayan with our referral fee
+    // Fetch quote from Mayan
     const quotes = await fetchQuote({
       amount: parseFloat(amount),
       fromToken: fromToken,
@@ -83,79 +192,72 @@ app.post('/v1/quote', async (req, res) => {
     if (!quotes || quotes.length === 0) {
       return res.status(404).json({ 
         error: 'No routes found',
-        message: 'Mayan could not find a swap route for this pair'
+        message: 'No swap route available for this pair'
       });
     }
 
-    // Get best quote (first one)
     const bestQuote = quotes[0];
 
-    // Generate quote ID and cache it
+    // Generate quote ID and cache
     const quoteId = uuidv4();
-    quoteCache.set(quoteId, {
+    const quoteData = {
       quote: bestQuote,
       timestamp: Date.now(),
-      params: { fromChain, toChain, fromToken, toToken, amount }
-    });
+      params: { fromChain, toChain, fromToken, toToken, amount, referrerBps }
+    };
+    
+    quoteCache.set(quoteId, quoteData);
 
-    // Clean up old quotes (older than 5 minutes)
-    const now = Date.now();
-    for (const [id, data] of quoteCache.entries()) {
-      if (now - data.timestamp > 300000) {
-        quoteCache.delete(id);
-      }
-    }
-
-    // Return quote with ClawSwap metadata
+    // Return flattened quote
     res.json({
       quoteId,
       fromChain,
       toChain,
-      fromToken,
-      toToken,
-      amountIn: amount,
-      expectedAmountOut: bestQuote.expectedAmountOut,
-      minAmountOut: bestQuote.minAmountOut,
-      effectivePrice: bestQuote.effectivePrice,
+      fromToken: bestQuote.fromToken?.mint || fromToken,
+      toToken: bestQuote.toToken?.mint || toToken,
+      fromAmount: bestQuote.fromAmount || amount.toString(),
+      toAmountMin: bestQuote.minAmountOut,
+      estimatedToAmount: bestQuote.effectiveAmountOut || bestQuote.expectedAmountOut,
       priceImpact: bestQuote.priceImpact,
+      estimatedDuration: bestQuote.duration,
       fee: `${referrerBps / 100}%`,
-      feeBps: referrerBps,
-      eta: bestQuote.eta || '60-90 seconds',
-      route: bestQuote.type || 'auto',
-      expiresAt: new Date(now + 300000).toISOString(),
-      gasless: bestQuote.gasless || false
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      route: `${fromChain} → ${toChain}`,
+      rawQuote: bestQuote
     });
 
   } catch (error) {
-    console.error('[QUOTE ERROR]', error);
+    console.error('[QUOTE ERROR]', error.message);
     res.status(500).json({ 
-      error: 'Failed to fetch quote',
-      message: error.message
+      error: 'Quote generation failed',
+      message: 'Unable to fetch quote. Please try again.',
+      code: 'E001'
     });
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// POST /v1/swap
-// Execute swap using cached quote
-// ═══════════════════════════════════════════════════════════
-app.post('/v1/swap', async (req, res) => {
+app.post('/v1/swap', swapLimit, async (req, res) => {
   try {
-    const { 
-      quoteId,
-      walletAddress,      // User's wallet on source chain
-      destWalletAddress   // Optional: destination wallet (defaults to same)
-    } = req.body;
+    const { quoteId } = req.body;
 
-    if (!quoteId || !walletAddress) {
+    if (!quoteId) {
       return res.status(400).json({ 
-        error: 'Missing required fields',
-        required: ['quoteId', 'walletAddress']
+        error: 'Missing quoteId',
+        message: 'quoteId is required'
       });
     }
 
-    // Retrieve cached quote
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(quoteId)) {
+      return res.status(400).json({
+        error: 'Invalid quoteId',
+        message: 'quoteId must be a valid UUID'
+      });
+    }
+
     const cached = quoteCache.get(quoteId);
+    
     if (!cached) {
       return res.status(404).json({ 
         error: 'Quote not found or expired',
@@ -164,97 +266,91 @@ app.post('/v1/swap', async (req, res) => {
     }
 
     const { quote, params } = cached;
-    const destinationWallet = destWalletAddress || walletAddress;
 
     console.log(`[SWAP] ${params.fromChain} → ${params.toChain}`);
 
-    // Return transaction info
-    // NOTE: For actual execution, the client needs to:
-    // 1. Get this response
-    // 2. Sign the transaction with their wallet
-    // 3. Broadcast it to the blockchain
-    // We don't hold keys, so we can't execute for them
-
+    // Return quote data for client-side execution
+    // This is non-custodial: agents execute the swap themselves
     res.json({
+      message: 'Quote ready for execution',
       swapId: quoteId,
-      status: 'ready',
-      message: 'Transaction ready. Sign and broadcast with your wallet.',
-      fromChain: params.fromChain,
-      toChain: params.toChain,
-      sourceWallet: walletAddress,
-      destWallet: destinationWallet,
-      quote: {
-        amountIn: params.amount,
-        expectedOut: quote.expectedAmountOut,
-        minOut: quote.minAmountOut
-      },
-      // Return the raw quote data so SDK can build transaction
-      mayanQuote: quote,
+      quote: quote,
+      params: params,
       instructions: {
-        solana: 'Use @mayanfinance/swap-sdk swapFromSolana() with this quote',
-        evm: 'Use @mayanfinance/swap-sdk swapFromEvm() with this quote'
-      }
+        step1: 'Sign the transaction with your wallet',
+        step2: 'Broadcast the transaction to the blockchain',
+        step3: 'Track status via swap explorer or your wallet'
+      },
+      note: 'ClawSwap does not execute swaps. Your agent must sign and broadcast.'
     });
 
   } catch (error) {
-    console.error('[SWAP ERROR]', error);
+    console.error('[SWAP ERROR]', error.message);
     res.status(500).json({ 
-      error: 'Failed to prepare swap',
-      message: error.message
+      error: 'Swap request failed',
+      message: 'Unable to process swap request',
+      code: 'E002'
     });
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// GET /v1/swap/:id
-// Track swap status via Mayan Explorer API
-// ═══════════════════════════════════════════════════════════
 app.get('/v1/swap/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    const cached = quoteCache.get(id);
     
-    // Query Mayan Explorer API
-    const response = await fetch(
-      `https://explorer-api.mayan.finance/v3/swap/trx/${id}`
-    );
-    
-    if (!response.ok) {
+    if (!cached) {
       return res.status(404).json({ 
         error: 'Swap not found',
-        swapId: id
+        message: 'Quote ID not found or expired'
       });
     }
 
-    const data = await response.json();
-
     res.json({
       swapId: id,
-      status: data.clientStatus, // INPROGRESS, COMPLETED, REFUNDED
-      fromChain: data.sourceChain,
-      toChain: data.destChain,
-      details: data
+      status: 'pending',
+      timestamp: new Date(cached.timestamp).toISOString(),
+      params: cached.params,
+      note: 'Track actual swap status on blockchain explorer'
     });
 
   } catch (error) {
-    console.error('[STATUS ERROR]', error);
+    console.error('[STATUS ERROR]', error.message);
     res.status(500).json({ 
-      error: 'Failed to fetch swap status',
-      message: error.message
+      error: 'Status check failed',
+      code: 'E003'
     });
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// Start server (local) or export for Vercel
-// ═══════════════════════════════════════════════════════════
-if (process.env.VERCEL !== '1') {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`🦞 ClawSwap API running on port ${PORT}`);
-    console.log(`📍 Health check: http://localhost:${PORT}/health`);
-    console.log(`💰 Referral fees: ${REFERRER_BPS.solana}bps (Solana), ${REFERRER_BPS.evm}bps (EVM)`);
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Not found',
+    message: `Endpoint ${req.method} ${req.path} does not exist`
   });
-}
+});
 
-// Export for Vercel serverless
-module.exports = app;
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('[ERROR]', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: 'An unexpected error occurred',
+    code: 'E999'
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// START SERVER
+// ═══════════════════════════════════════════════════════════
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`🦞 ClawSwap API v1.0.1 (secure)`);
+  console.log(`📡 Listening on port ${PORT}`);
+  console.log(`🔒 Security: helmet + rate limits + input validation`);
+  console.log(`📦 Cache: LRU (max 10k quotes, 5min TTL)`);
+  console.log(`✅ Non-custodial: Agents execute swaps client-side`);
+});
