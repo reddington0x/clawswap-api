@@ -222,9 +222,8 @@ MIT - Do whatever you want with it.
 Built by [@reddington0x](https://github.com/reddington0x)
 
 Powered by:
-- [Mayan Finance](https://mayan.finance) - Cross-chain swap protocol
-- [Helius](https://helius.dev) - Solana RPC
-- [Fly.io](https://fly.io) - Serverless hosting
+- [Mayan Finance](https://mayan.finance) - Cross-chain swap protocol (handles all RPC internally)
+- [Fly.io](https://fly.io) - API hosting
 - [Vercel](https://vercel.com) - Static hosting
 
 ---

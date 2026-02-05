@@ -89,11 +89,20 @@ Content-Type: application/json
 **Response:**
 ```json
 {
-  "quoteId": "uuid",
-  "expectedAmountOut": 0.0418,
-  "minAmountOut": 0.0414,
+  "quoteId": "uuid-v4",
+  "fromChain": "solana",
+  "toChain": "solana",
+  "fromToken": "So11111111111111111111111111111111111111112",
+  "toToken": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "fromAmount": "1000000000",
+  "toAmountMin": "41400000",
+  "estimatedToAmount": "41800000",
+  "priceImpact": 0.05,
+  "estimatedDuration": "60-90 seconds",
   "fee": "1%",
-  "eta": "60-90 seconds"
+  "expiresAt": "2026-02-04T23:20:00.000Z",
+  "route": "solana → solana",
+  "rawQuote": { /* Full Mayan SDK quote object */ }
 }
 ```
 

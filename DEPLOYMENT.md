@@ -29,20 +29,13 @@ git push origin main  # Auto-deploys via Vercel
 
 ### Required (already set)
 ```bash
-# Helius RPC (free tier, 100k req/day)
-HELIUS_API_KEY=your-helius-api-key-here
-SOLANA_RPC=https://mainnet.helius-rpc.com/?api-key=your-helius-api-key-here
-
 # Referrer wallets (earning fees)
 REFERRER_SOLANA=58fgjE89vUmcLn48eZb9QM7Vu4YB9sTcHUiSyYbCkMP4
 REFERRER_EVM=0xf8E3A4EE5F5f138E6EbB9d46E010c3E3136e35C2
 REFERRER_SUI=0x1e6c5d829ce9e5b8b65f103907ecf107ae868d703d5de9aea996f9823ac11557
 ```
 
-### Update secrets on Fly.io
-```bash
-flyctl secrets set HELIUS_API_KEY=your-key-here
-```
+**Note:** No RPC API keys needed - Mayan Finance SDK handles all blockchain RPC internally.
 
 ---
 
@@ -61,12 +54,6 @@ flyctl secrets set HELIUS_API_KEY=your-key-here
 1. Sign up at https://betteruptime.com (free tier)
 2. Add same URLs
 3. Get 1-min checks for free
-
-### Helius Usage Monitoring
-- Dashboard: https://dashboard.helius.dev
-- Check daily request count
-- Free tier: 100k requests/day
-- Upgrade to Pro ($99/month) if approaching limit
 
 ### Fly.io Monitoring
 ```bash
@@ -146,11 +133,6 @@ flyctl logs --app clawswap-api
 2. Force redeploy: Push empty commit
 3. Clear browser cache (Cmd+Shift+R)
 
-### Helius RPC errors
-1. Check usage: https://dashboard.helius.dev
-2. If over limit, upgrade to Pro
-3. Fallback RPC: `https://api.mainnet-beta.solana.com`
-
 ---
 
 ## Revenue Tracking
@@ -198,7 +180,6 @@ Store in secure location:
 - [x] Native token delivery working (zero address)
 - [x] Error handling documented
 - [x] Minimum amounts documented
-- [x] Helius RPC configured
 - [ ] Uptime monitoring configured (TODO: You)
 - [x] Favicon added 🦞
 
